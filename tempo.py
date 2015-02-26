@@ -6,20 +6,32 @@ from pylab import plot, show, figure
 import matplotlib.pyplot as plt
 import numpy as np
 
+# buggy
+def peakDetection(arr, w):
+    x = arr.copy()
+    peaks = []
+    for i in range(len(x)):
+        if np.all(x[i] > x[max(0, i-w) : i]) and np.all(x[i] > x[i+1 : min(len(x), i+w+1)]):
+            peaks.append(i)
+    return peaks
+
+
 eps = np.finfo(float).eps
 
 fs = 44100.0  # ismir04 dataset
 nfft = 2048
 hopsize = 512
+bpm_boudaryL = 30
+bpm_boudaryH = 240
 
 audiofile = '01-Dancing Queen.wav'
 loader = essentia.standard.MonoLoader(filename = audiofile)
 audio = loader()
 # result of AudioLoader is significantly different, but audio == audio2 is True. Why?!
-# loader2 = essentia.standard.AudioLoader(filename = audiofile)
-# audio2, fs, nCh = loader2()
-# audio2 = audio2[:, nCh - 1]
-# audio = audio2
+loader2 = essentia.standard.AudioLoader(filename = audiofile)
+audio2, fs, nCh = loader2()
+audio2 = audio2[:, nCh - 1]
+audio = audio2
 
 w = Windowing(type = 'hann')
 spectrum = Spectrum()
@@ -42,6 +54,7 @@ for fr in range(nfr):
         energy[fr, i] = np.sum(specgram[fr][fco[i] : (1 + fco[i+1])] ** 2)
 energy[energy < eps] = eps
 energy = 10 * np.log10(energy)
+
 plt.figure(1)
 plt.plot(energy)
 
@@ -69,19 +82,29 @@ for nband in range(bands):
 tt = np.arange(nfr_corr, dtype = np.float64) * hopsize / fs
 tt[tt < eps] = eps
 bpm = 60 / tt
+# index for restricted bpm
+idxH = np.where(bpm >= bpm_boudaryL)
+idxH = idxH[0][-1]
+idxL = np.where(bpm <= bpm_boudaryH)
+idxL = idxL[0][0]
+corr_matrixR = corr_matrix[idxL : idxH+1, :]
+bpm = bpm[bpm >= bpm_boudaryL]
+bpm = bpm[bpm <= bpm_boudaryH]
 
 plt.figure(2)
-plt.subplot(211)
+plt.subplot(311)
 plt.plot(corr_matrix)
-plt.subplot(212)
-plt.plot(bpm, corr_matrix)
-xlim(30, 240)
-plt.show()
+plt.subplot(312)
+peaks = peakDetection(corr_matrixR[:, 0], 2)
+for i in range(len(peaks)):
+    plt.axvline(bpm[peaks[i]], color='g')
+plt.xlim(30, 240)
+plt.plot(bpm, corr_matrixR)
 
 hop_corrtime = 1
 hop_corr = np.round(hop_corrtime * fs / hopsize)
 nfr_bpm = int(np.round((nfr - nfr_corr) / hop_corr))
-bpm_matrix = np.zeros([nfr_corr, bands, nfr_bpm])
+bpm_matrix = np.zeros([idxH-idxL+1, bands, nfr_bpm])
 
 for k in range(nfr_bpm):
     corr_matrix = np.zeros([nfr_corr, bands])
@@ -91,5 +114,11 @@ for k in range(nfr_bpm):
         x = np.correlate(e - np.mean(e), e - np.mean(e), mode='full')
         x = x / x[nfr_corr - 1]
         corr_matrix[:, nband] = x[nfr_corr - 1 : 2 * nfr_corr - 1]
-    bpm_matrix[:, :, k] = corr_matrix
+        corr_matrixR = corr_matrix[idxL : idxH+1, :]
+    bpm_matrix[:, :, k] = corr_matrixR
+
+plt.subplot(313)
+plt.plot(bpm, bpm_matrix[:, :, 8])
+plt.xlim(30, 240)
+plt.show()
 
