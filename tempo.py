@@ -142,7 +142,6 @@ def tempo(audiofile = './01-Dancing Queen.wav'):
                 p = peaks[:, nband, k-1]
                 p = p.tolist()
                 p = [int(i) for i in p]
-            print p
             Np = np.argsort(bpm_matrix[p, nband, k])
             Np = Np[-nPeaks :]
             p = [p[i] for i in Np]
@@ -176,3 +175,39 @@ def tempo(audiofile = './01-Dancing Queen.wav'):
     return bpm_final
 
 # evaluation
+datafolder = '../DATASET'
+annofolder = '../DATASET/Fabiens annotations'
+filelist = os.listdir(datafolder)
+result = []
+resultD = []  # double tempo
+resultH = []  # half tempo
+resultDH = []  # double or half tempo
+for wavfile in filelist:
+    if wavfile[-4:] == '.wav':
+        bpm = tempo(audiofile = datafolder + '/' + wavfile)
+        annofile = annofolder + '/' + wavfile[: -4] + ' beat.bpm'
+        f = open(annofile, 'r')
+        anno = f.read()
+        anno = anno[: -1]  # trim the space at the end
+        anno = float(anno)
+        f.close()
+        if bpm <= anno + 0.1 * anno and bpm >= anno - 0.1 * anno:
+            result.append(1)
+        else:
+            result.append(0)
+        if bpm <= 2 * anno + 0.1 * 2 * anno and bpm >= 2 * anno - 0.1 * 2 * anno:
+            resultD.append(1)
+        else:
+            resultD.append(0 or result[-1])
+        if bpm <= 0.5 * anno + 0.1 * 0.5 * anno and bpm >= 0.5 * anno - 0.1 * 0.5 * anno:
+            resultH.append(1)
+        else:
+            resultH.append(0 or result[-1])
+        resultDH.append(result[-1] or resultD[-1] or resultH[-1])
+        print result[-1], resultD[-1], resultH[-1], resultDH[-1], bpm, anno
+
+acc = float(sum(result)) / len(result)
+accD = float(sum(resultD)) / len(resultD)
+accH = float(sum(resultH)) / len(resultH)
+accDH = float(sum(resultDH)) / len(resultDH)
+print acc, accD, accH, accDH
