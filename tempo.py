@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+""" very naive tempo estimation"""
+
 import essentia
 import essentia.standard
 import essentia.streaming
@@ -180,7 +184,8 @@ def tempo(audiofile = './01-Dancing Queen.wav'):
     
     return bpm_final
 
-# evaluation
+## Evaluation
+# Datset: ismir04 tempo estimation http://mtg.upf.edu/ismir2004/contest/tempoContest/node6.html
 datafolder = '../DATASET'
 annofolder = '../DATASET/Fabiens annotations'
 filelist = os.listdir(datafolder)
