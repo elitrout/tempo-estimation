@@ -26,14 +26,13 @@ def tempo(audiofile = './01-Dancing Queen.wav'):
     bpm_boudaryH = 240
     nPeaks = 3
     
-    # audiofile = '01-Dancing Queen.wav'
     loader = essentia.standard.MonoLoader(filename = audiofile)
     audio = loader()
     # result of AudioLoader is significantly different, but audio == audio2 is True. Why?!
     loader2 = essentia.standard.AudioLoader(filename = audiofile)
     audio2, fs, nCh = loader2()
     audio2 = audio2[:, nCh - 1]
-    audio = audio2
+    audio = audio2  # use AudioLoader instead of MonoLoader
     
     w = Windowing(type = 'hann')
     spectrum = Spectrum()
@@ -59,17 +58,19 @@ def tempo(audiofile = './01-Dancing Queen.wav'):
     energy = 10 * np.log10(energy)
     
     plt.figure(1)
+    plt.subplot(211)
     plt.plot(energy)
     
-    # use EnergyBand in essentia. result is different
-    # energyB = np.zeros([nfr, bands])
-    # for fr in range(nfr):
-    #     for i in range(bands):
-    #         energyBand = EnergyBand(startCutoffFrequency=fco[i], stopCutoffFrequency=(1+fco[i+1]))  # stop freq included?
-    #         energyB[fr, i] = energyBand(specgram[fr])
-    # energy[energy < eps] = eps
-    # energyB = 10 * np.log10(energyB)
-    # plot(energyB)
+    # use EnergyBand in essentia. result is slightly different
+    energyB = np.zeros([nfr, bands])
+    for fr in range(nfr):
+        for i in range(bands):
+            energyBand = EnergyBand(startCutoffFrequency=fco[i], stopCutoffFrequency=(1+fco[i+1]))  # stop freq included?
+            energyB[fr, i] = energyBand(specgram[fr])
+    energyB[energyB < eps] = eps
+    energyB = 10 * np.log10(energyB)
+    plt.subplot(212)
+    plot(energyB)
     
     # auto-correlation
     corrtime = 6.0
@@ -92,14 +93,17 @@ def tempo(audiofile = './01-Dancing Queen.wav'):
     corr_matrixR = corr_matrix[idxL : idxH+1, :]
     bpm = bpm[bpm >= bpm_boudaryL]
     bpm = bpm[bpm <= bpm_boudaryH]
-    
+
     plt.figure(2)
+    plt.subplot(211)
+    plt.plot(tt, corr_matrix)
+    plt.subplot(212)
+    plt.plot(tt, corr_matrix[:, 0])
+    
+    plt.figure(3)
     plt.subplot(311)
-    plt.plot(corr_matrix)
+    plt.plot(tt, corr_matrix)
     plt.subplot(312)
-    peaks = peakDetection(corr_matrixR[:, 0], 2)
-    for i in range(len(peaks)):
-        plt.axvline(bpm[peaks[i]], color='g')
     plt.xlim(30, 240)
     plt.plot(bpm, corr_matrixR)
     
@@ -125,6 +129,8 @@ def tempo(audiofile = './01-Dancing Queen.wav'):
     Npeaks = np.argsort(bpm_matrix[peaks, 0, 0])
     Npeaks = Npeaks[-3 :]
     peaks = [peaks[i] for i in Npeaks]
+
+    plt.subplot(313)
     for i in range(len(peaks)):
         plt.axvline(bpm[peaks[i]], color='g')
     plt.xlim(30, 240)
@@ -157,10 +163,10 @@ def tempo(audiofile = './01-Dancing Queen.wav'):
             p_std[nP, nband] = np.std(peak_matrix[nP, nband, :])
             p_mcorr[nP, nband] = np.median(peak_matrix[nP, nband, :])
     
-    # find the peak position for each band that has the lowest standard deviation (stable)
+    # find the peak position for each band that has the lowest standard deviation
     p_lstd = np.argmax(p_std, axis=0)
     
-    # find the band that has the highest median correlation value with the peak position aquired above
+    # find the band that has the highest median correlation value with the peak position obtained above
     p_mcorr2 = np.zeros(bands)
     for nband in range(bands):
         p_mcorr2[nband] = p_mcorr[p_lstd[nband], nband]
@@ -182,6 +188,7 @@ result = []
 resultD = []  # double tempo
 resultH = []  # half tempo
 resultDH = []  # double or half tempo
+trsh = 0.1
 for wavfile in filelist:
     if wavfile[-4:] == '.wav':
         bpm = tempo(audiofile = datafolder + '/' + wavfile)
@@ -191,15 +198,15 @@ for wavfile in filelist:
         anno = anno[: -1]  # trim the space at the end
         anno = float(anno)
         f.close()
-        if bpm <= anno + 0.1 * anno and bpm >= anno - 0.1 * anno:
+        if bpm <= anno + trsh * anno and bpm >= anno - trsh * anno:
             result.append(1)
         else:
             result.append(0)
-        if bpm <= 2 * anno + 0.1 * 2 * anno and bpm >= 2 * anno - 0.1 * 2 * anno:
+        if bpm <= 2 * anno + trsh * 2 * anno and bpm >= 2 * anno - trsh * 2 * anno:
             resultD.append(1)
         else:
             resultD.append(0 or result[-1])
-        if bpm <= 0.5 * anno + 0.1 * 0.5 * anno and bpm >= 0.5 * anno - 0.1 * 0.5 * anno:
+        if bpm <= 0.5 * anno + trsh * 0.5 * anno and bpm >= 0.5 * anno - trsh * 0.5 * anno:
             resultH.append(1)
         else:
             resultH.append(0 or result[-1])
