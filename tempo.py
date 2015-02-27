@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-""" very naive tempo estimation"""
+""" very naive tempo estimation """
 
 import essentia
 import essentia.standard
