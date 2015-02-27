@@ -139,7 +139,7 @@ def tempo(audiofile = './01-Dancing Queen.wav'):
         plt.axvline(bpm[peaks[i]], color='g')
     plt.xlim(30, 240)
     plt.plot(bpm, bpm_matrix[:, 0, 0])
-    plt.show()
+    # plt.show()
     
     # compute N highest peaks for each band in bpm-gram
     peaks = np.zeros([nPeaks, bands, nfr_bpm])  # peak position
